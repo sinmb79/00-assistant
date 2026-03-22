@@ -1,12 +1,26 @@
-# 22B Assistant — BMVP Backend
+# 22B Assistant — BMVP
 
-A local-first AI assistant backend with a team of specialized domain agents.
-Each agent is an expert in a specific domain. They don't chat — they work and report.
+A local-first AI assistant for Korean government officials, with a team of specialized domain agents.
+Each agent wraps a domain engine. They don't chat — they work and report.
+
+## Quick Start
+
+```bash
+# Launch the assistant (system tray + chat window)
+python -m assistant_22b
+# or, after pip install:
+assistant-22b
+```
+
+Hotkey: **Ctrl+Shift+G** — toggles the chat window at any time.
 
 ## Architecture
 
 ```
-User Request
+User Input (chat window)
+    │
+    ▼
+AssistantApp.process_message()
     │
     ▼
 PipelineExecutor
@@ -15,6 +29,9 @@ PipelineExecutor
     ├── Gate 2: PII masking (before any external LLM call)
     ├── Gate 3: Result verification (PII leak + citation check)
     └── Gate 4: Encrypted audit log (SQLite + Fernet)
+    │
+    ▼
+ConversationStore (encrypted SQLite)
 ```
 
 ## Core Principles
@@ -50,7 +67,7 @@ pip install -e ".[dev]"
 pytest --tb=short -q
 ```
 
-Expected output: 54 passed
+Expected output: 86 passed
 
 ## Adding a New Agent
 
@@ -98,6 +115,8 @@ class LegalAgent(BaseAgent):
 
 ```
 src/assistant_22b/
+├── __main__.py         # Entry point: python -m assistant_22b
+├── config.py           # AssistantConfig + ConfigManager
 ├── pipeline/
 │   ├── context.py      # GateRecord, AgentResult, PipelineContext
 │   └── executor.py     # PipelineExecutor — orchestrates the full pipeline
@@ -107,10 +126,20 @@ src/assistant_22b/
 │   ├── gate2_masker.py      # PII masking (wraps P1 PIIMasker)
 │   ├── gate3_verifier.py    # Output PII check + citation integrity
 │   └── gate4_logger.py      # Fernet-encrypted SQLite audit log
-└── agents/
-    ├── base.py         # BaseAgent ABC + AgentManifest
-    ├── registry.py     # Manifest-driven agent discovery and routing
-    └── administrative/ # 행정 에이전트 — wraps P1 공문닥터
+├── agents/
+│   ├── base.py         # BaseAgent ABC + AgentManifest
+│   ├── registry.py     # Manifest-driven agent discovery and routing
+│   └── administrative/ # 행정 에이전트 — wraps P1 공문닥터
+├── llm/
+│   └── router.py       # LLMRouter — none / external (CloudLLMRuntime) / local (llama-cpp)
+├── storage/
+│   └── conversations.py # ConversationStore — encrypted SQLite chat history
+├── hwp/
+│   └── adapter.py      # HwpAdapter — wraps P1 HwpController + HwpCorrectionBridge
+└── ui/
+    ├── app.py          # AssistantApp — wires everything together
+    ├── chat_window.py  # Tkinter chat UI
+    └── tray.py         # pystray system tray icon
 ```
 
 ## Security & Privacy
@@ -125,7 +154,7 @@ src/assistant_22b/
 
 | Phase | Status | Content |
 |-------|--------|---------|
-| A — BMVP | ✅ Done | Administrative Agent, 4-Gate Security, Pipeline |
+| BMVP | ✅ Done | Administrative Agent, 4-Gate Security, Pipeline, LLM Router, Chat UI, Tray |
 | B | Planned | Legal Agent (규정레이다), Task Agent, Personalization |
 | C | Planned | Local LLM (civil-ai-ko.gguf) integration |
 | D | Planned | Civil Engineering, Architecture, Permit, Accounting, Audit agents |
