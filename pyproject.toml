@@ -9,7 +9,13 @@ requires-python = ">=3.12"
 dependencies = [
     "gongmun_doctor",
     "cryptography>=42.0",
+    "pystray>=0.19",
+    "pillow>=10.0",
+    "keyboard>=0.13",
 ]
+
+[project.scripts]
+assistant-22b = "assistant_22b.__main__:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov>=5.0"]
