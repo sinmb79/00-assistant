@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.env
+*.key
+*.pem
+.venv/
+venv/
+
+# 22B Assistant runtime data (never commit)
+# Note: ~/.22b-assistant/ lives in the home directory and is outside this repo.
+# It cannot be excluded via .gitignore — never manually copy it into the repo.
+.22b-assistant/
