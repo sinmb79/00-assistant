@@ -1,0 +1,10 @@
+{
+  "id": "administrative",
+  "name": "행정 에이전트",
+  "icon": "📝",
+  "version": "1.0.0",
+  "triggers": ["공문", "교정", "공문서", "기안", "보고서", "행정", "문서", "맞춤법", "띄어쓰기"],
+  "llm_preference": "local",
+  "sensitivity": "internal",
+  "fallback": true
+}
