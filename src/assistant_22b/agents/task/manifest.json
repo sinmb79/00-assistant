@@ -1,0 +1,10 @@
+{
+  "id": "task",
+  "name": "일정 에이전트",
+  "icon": "📅",
+  "version": "1.0.0",
+  "triggers": ["추가", "등록", "할일", "해야", "만들어", "완료", "삭제", "목록", "이번 주", "수정", "일정"],
+  "llm_preference": "local",
+  "sensitivity": "internal",
+  "fallback": false
+}
