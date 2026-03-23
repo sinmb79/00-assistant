@@ -7,6 +7,7 @@ from pathlib import Path
 
 from assistant_22b.agents.registry import AgentRegistry
 from assistant_22b.config import AssistantConfig, ConfigManager
+from assistant_22b.hwp.adapter import HwpAdapter
 from assistant_22b.pipeline.executor import PipelineExecutor
 from assistant_22b.security.auditor import SecurityAuditor
 from assistant_22b.storage.conversations import ConversationStore, ConversationTurn
@@ -51,6 +52,7 @@ class AssistantApp:
             key_path=data / ".conv_key",
         )
 
+        self._hwp = HwpAdapter()
         self._window = None  # built lazily in run()
         self._tray = None
 
@@ -87,6 +89,24 @@ class AssistantApp:
         return response
 
     # ------------------------------------------------------------------
+    def run_hwp_correction(self, mode: str = "track_changes") -> dict:
+        """
+        Connect to Hanword and run document correction.
+        Posts result to chat window if available.
+        Returns {"success": bool, ...}.
+        """
+        if not self._hwp.is_available():
+            return {"success": False, "error": "HWP not available — pywin32 미설치 또는 한글 미실행"}
+        if not self._hwp.connect():
+            return {"success": False, "error": "한글 COM 연결 실패 — 한글을 먼저 실행하세요"}
+        result = self._hwp.run_correction(mode)
+        # Post result to chat window from any thread safely
+        if self._window and self._window._root:
+            msg = "✅ 한글 교정 완료" if result["success"] else f"❌ 교정 실패: {result.get('error', '')}"
+            self._window._root.after(0, lambda: self._window._append_message("한글 교정", msg, "assistant"))
+        return result
+
+    # ------------------------------------------------------------------
     def run(self) -> None:
         """Start the application — tray in daemon thread, chat window on main thread."""
         import tkinter as tk
@@ -102,6 +122,7 @@ class AssistantApp:
         self._tray = TrayIcon(
             on_show=self._window.reveal,
             on_quit=root.quit,
+            on_hwp_correct=self.run_hwp_correction if self._hwp.is_available() else None,
         )
         self._tray.start_in_thread()
 

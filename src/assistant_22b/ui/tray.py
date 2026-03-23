@@ -25,6 +25,8 @@ class TrayIcon:
     Args:
         on_show: Callback invoked when user clicks "열기" (show window).
         on_quit: Callback invoked when user clicks "종료".
+        on_hwp_correct: Optional callback for "한글 교정" menu item.
+                        If None, the menu item is not shown.
         tooltip: Tooltip text for the tray icon.
     """
 
@@ -32,20 +34,23 @@ class TrayIcon:
         self,
         on_show: Callable[[], None],
         on_quit: Callable[[], None],
+        on_hwp_correct: Callable[[], None] | None = None,
         tooltip: str = "22B Assistant",
     ) -> None:
         self._on_show = on_show
         self._on_quit = on_quit
+        self._on_hwp_correct = on_hwp_correct
         self._tooltip = tooltip
         self._icon: pystray.Icon | None = None
 
     def start(self) -> None:
         """Build and run the tray icon (blocking — run in a daemon thread)."""
         image = _make_icon_image()
-        menu = pystray.Menu(
-            pystray.MenuItem("열기", self._handle_show, default=True),
-            pystray.MenuItem("종료", self._handle_quit),
-        )
+        items = [pystray.MenuItem("열기", self._handle_show, default=True)]
+        if self._on_hwp_correct is not None:
+            items.append(pystray.MenuItem("한글 교정", self._handle_hwp_correct))
+        items.append(pystray.MenuItem("종료", self._handle_quit))
+        menu = pystray.Menu(*items)
         self._icon = pystray.Icon("22b-assistant", image, self._tooltip, menu)
         self._icon.run()
 
@@ -66,3 +71,7 @@ class TrayIcon:
     def _handle_quit(self, icon, item) -> None:  # noqa: ANN001
         self.stop()
         self._on_quit()
+
+    def _handle_hwp_correct(self, icon, item) -> None:  # noqa: ANN001
+        if self._on_hwp_correct:
+            self._on_hwp_correct()

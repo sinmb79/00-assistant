@@ -70,3 +70,77 @@ def test_process_message_with_agent_error():
 
     result = app.process_message("입력")
     assert "오류" in result or "error" in result.lower() or isinstance(result, str)
+
+
+# ── HWP integration ───────────────────────────────────────────────────────────
+
+def test_run_hwp_correction_success():
+    """run_hwp_correction connects adapter, runs correction, returns summary string."""
+    from assistant_22b.ui.app import AssistantApp
+
+    mock_adapter = MagicMock()
+    mock_adapter.is_available.return_value = True
+    mock_adapter.connect.return_value = True
+    mock_adapter.run_correction.return_value = {"success": True, "result": [{"item": "교정"}]}
+
+    app = AssistantApp.__new__(AssistantApp)
+    app._hwp = mock_adapter
+    app._window = None  # no live window in test
+
+    result = app.run_hwp_correction()
+    assert result["success"] is True
+    mock_adapter.connect.assert_called_once()
+    mock_adapter.run_correction.assert_called_once()
+
+
+def test_run_hwp_correction_not_available():
+    """run_hwp_correction returns error dict when HWP/pywin32 not installed."""
+    from assistant_22b.ui.app import AssistantApp
+
+    mock_adapter = MagicMock()
+    mock_adapter.is_available.return_value = False
+
+    app = AssistantApp.__new__(AssistantApp)
+    app._hwp = mock_adapter
+    app._window = None
+
+    result = app.run_hwp_correction()
+    assert result["success"] is False
+    assert "available" in result["error"].lower() or "hwp" in result["error"].lower()
+
+
+def test_run_hwp_correction_connect_fails():
+    """run_hwp_correction returns error dict when COM connection fails."""
+    from assistant_22b.ui.app import AssistantApp
+
+    mock_adapter = MagicMock()
+    mock_adapter.is_available.return_value = True
+    mock_adapter.connect.return_value = False
+
+    app = AssistantApp.__new__(AssistantApp)
+    app._hwp = mock_adapter
+    app._window = None
+
+    result = app.run_hwp_correction()
+    assert result["success"] is False
+
+
+def test_tray_icon_accepts_hwp_correct_callback():
+    """TrayIcon accepts optional on_hwp_correct callback without error."""
+    from assistant_22b.ui.tray import TrayIcon
+
+    called = []
+    tray = TrayIcon(
+        on_show=lambda: None,
+        on_quit=lambda: None,
+        on_hwp_correct=lambda: called.append(True),
+    )
+    assert tray._on_hwp_correct is not None
+
+
+def test_tray_icon_hwp_correct_defaults_to_none():
+    """on_hwp_correct is optional — defaults to None."""
+    from assistant_22b.ui.tray import TrayIcon
+
+    tray = TrayIcon(on_show=lambda: None, on_quit=lambda: None)
+    assert tray._on_hwp_correct is None
