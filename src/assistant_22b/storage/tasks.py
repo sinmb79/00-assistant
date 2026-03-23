@@ -31,7 +31,7 @@ class TaskStore:
             "created_at": now,
             "updated_at": now,
         }
-        blob = self._fernet.encrypt(json.dumps(payload, ensure_ascii=False).encode())
+        blob = self._fernet.encrypt(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
         with sqlite3.connect(self._db_path) as conn:
             conn.execute(
                 "INSERT INTO tasks (task_id, created_at, blob) VALUES (?, ?, ?)",
@@ -46,7 +46,7 @@ class TaskStore:
         tasks = []
         for (blob,) in rows:
             try:
-                data = json.loads(self._fernet.decrypt(blob).decode())
+                data = json.loads(self._fernet.decrypt(blob).decode("utf-8"))
             except Exception:
                 continue
             if data.get("status") != "open":
@@ -78,20 +78,26 @@ class TaskStore:
 
     def query_due_soon(self, hours: int = 24) -> list[dict]:
         """Return open tasks with due_date between now and now+hours."""
-        now_str = datetime.now().isoformat()
-        cutoff = (datetime.now() + timedelta(hours=hours)).isoformat()
+        now = datetime.now()
+        cutoff = now + timedelta(hours=hours)
         with sqlite3.connect(self._db_path) as conn:
             rows = conn.execute("SELECT blob FROM tasks ORDER BY id").fetchall()
         result = []
         for (blob,) in rows:
             try:
-                data = json.loads(self._fernet.decrypt(blob).decode())
+                data = json.loads(self._fernet.decrypt(blob).decode("utf-8"))
             except Exception:
                 continue
             if data.get("status") != "open":
                 continue
             due = data.get("due_date")
-            if due and now_str <= due <= cutoff:
+            if not due:
+                continue
+            try:
+                due_dt = datetime.fromisoformat(due)
+            except ValueError:
+                continue
+            if now <= due_dt <= cutoff:
                 result.append(data)
         return result
 
@@ -104,13 +110,13 @@ class TaskStore:
                 return False
             row_id, blob = row
             try:
-                data = json.loads(self._fernet.decrypt(blob).decode())
+                data = json.loads(self._fernet.decrypt(blob).decode("utf-8"))
             except Exception:
                 return False
             data.update(changes)
             data["updated_at"] = datetime.now().isoformat()
             new_blob = self._fernet.encrypt(
-                json.dumps(data, ensure_ascii=False).encode()
+                json.dumps(data, ensure_ascii=False).encode("utf-8")
             )
             conn.execute("UPDATE tasks SET blob = ? WHERE id = ?", (new_blob, row_id))
         return True
