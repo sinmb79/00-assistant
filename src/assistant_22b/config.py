@@ -13,6 +13,7 @@ class AssistantConfig:
     llm_provider: str = "claude"    # "claude" | "openai" | "gemini"
     hotkey: str = "ctrl+shift+g"
     theme: str = "light"
+    task_check_interval_minutes: int = 60
 
 
 class ConfigManager:

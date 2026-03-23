@@ -52,3 +52,15 @@ def test_update_config_field(tmp_path):
     cfg = ConfigManager(config_path=tmp_path / "config.json")
     cfg.config.llm_model_path = "/models/llama.gguf"
     assert cfg.config.llm_model_path == "/models/llama.gguf"
+
+
+def test_task_check_interval_minutes_default(tmp_path):
+    cfg = ConfigManager(config_path=tmp_path / "config.json")
+    assert cfg.config.task_check_interval_minutes == 60
+
+
+def test_task_check_interval_minutes_loads_from_json(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text('{"task_check_interval_minutes": 30}', encoding="utf-8")
+    cfg = ConfigManager(config_path=path)
+    assert cfg.config.task_check_interval_minutes == 30
