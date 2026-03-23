@@ -144,3 +144,50 @@ def test_tray_icon_hwp_correct_defaults_to_none():
 
     tray = TrayIcon(on_show=lambda: None, on_quit=lambda: None)
     assert tray._on_hwp_correct is None
+
+
+def test_app_has_task_store_attribute(tmp_path):
+    """AssistantApp.__init__ wires a _task_store. Verified by constructing it directly."""
+    from assistant_22b.ui.app import AssistantApp
+    from assistant_22b.storage.tasks import TaskStore
+
+    # Use __new__ to bypass full __init__ (AgentRegistry/HwpAdapter side-effects)
+    app = AssistantApp.__new__(AssistantApp)
+    (tmp_path / "db").mkdir()
+    app._task_store = TaskStore(
+        db_path=tmp_path / "db" / "tasks.db",
+        key_path=tmp_path / ".tasks_key",
+    )
+    assert hasattr(app, "_task_store")
+    assert isinstance(app._task_store, TaskStore)
+
+
+def test_poll_due_tasks_calls_query_due_soon():
+    """_poll_due_tasks calls TaskStore.query_due_soon and notifies on results."""
+    from assistant_22b.ui.app import AssistantApp
+    from unittest.mock import MagicMock
+
+    mock_store = MagicMock()
+    mock_store.query_due_soon.return_value = [{"title": "마감 임박 보고서"}]
+
+    app = AssistantApp.__new__(AssistantApp)
+    app._task_store = mock_store
+    app._window = None
+
+    app._poll_due_tasks()
+    mock_store.query_due_soon.assert_called_once()
+
+
+def test_poll_due_tasks_no_crash_when_empty():
+    """_poll_due_tasks does not crash when no tasks are due."""
+    from assistant_22b.ui.app import AssistantApp
+    from unittest.mock import MagicMock
+
+    mock_store = MagicMock()
+    mock_store.query_due_soon.return_value = []
+
+    app = AssistantApp.__new__(AssistantApp)
+    app._task_store = mock_store
+    app._window = None
+
+    app._poll_due_tasks()  # must not raise

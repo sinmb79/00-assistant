@@ -11,6 +11,7 @@ from assistant_22b.hwp.adapter import HwpAdapter
 from assistant_22b.pipeline.executor import PipelineExecutor
 from assistant_22b.security.auditor import SecurityAuditor
 from assistant_22b.storage.conversations import ConversationStore, ConversationTurn
+from assistant_22b.storage.tasks import TaskStore
 
 # Lazy UI imports to avoid Tk startup in headless environments
 from datetime import datetime
@@ -37,6 +38,7 @@ class AssistantApp:
     ) -> None:
         data = data_dir or _DATA_DIR
         data.mkdir(parents=True, exist_ok=True)
+        (data / "db").mkdir(exist_ok=True)
 
         self._config_mgr = ConfigManager(config_path=config_path)
         self._session_id = str(uuid.uuid4())
@@ -50,6 +52,10 @@ class AssistantApp:
         self._store = ConversationStore(
             db_path=data / "conversations.db",
             key_path=data / ".conv_key",
+        )
+        self._task_store = TaskStore(
+            db_path=data / "db" / "tasks.db",
+            key_path=data / ".tasks_key",
         )
 
         self._hwp = HwpAdapter()
@@ -107,6 +113,21 @@ class AssistantApp:
         return result
 
     # ------------------------------------------------------------------
+    def _poll_due_tasks(self) -> None:
+        """Check for tasks due within 24 h and post a notification if found."""
+        try:
+            due = self._task_store.query_due_soon(hours=24)
+        except Exception:
+            return
+        if due and self._window and self._window._root:
+            titles = ", ".join(t["title"] for t in due[:3])
+            suffix = f" 외 {len(due) - 3}건" if len(due) > 3 else ""
+            msg = f"⏰ 마감 임박: {titles}{suffix}"
+            self._window._root.after(
+                0, lambda: self._window._append_message("일정 알림", msg, "assistant")
+            )
+
+    # ------------------------------------------------------------------
     def run(self) -> None:
         """Start the application — tray in daemon thread, chat window on main thread."""
         import tkinter as tk
@@ -115,6 +136,14 @@ class AssistantApp:
         from assistant_22b.ui.tray import TrayIcon
 
         root = tk.Tk()
+
+        interval_ms = self._config_mgr.config.task_check_interval_minutes * 60 * 1000
+
+        def _schedule_poll():
+            self._poll_due_tasks()
+            root.after(interval_ms, _schedule_poll)
+
+        root.after(interval_ms, _schedule_poll)
 
         self._window = ChatWindow(on_send=self.process_message)
         self._window.build(root)
